@@ -1,0 +1,30 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: fiap_user
+      POSTGRES_PASSWORD: fiap_pass
+      POSTGRES_DB: fiap_db
+      TZ: Europe/Amsterdam     
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - fiap_net
+
+  fiap_app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://fiap_user:fiap_pass@db:5432/fiap_db
+    networks:
+      - fiap_net
+    # you can override CMD here if needed
+    # command: ["python", "-m", "captura.processor"]
+
+volumes:
+  db_data:
+
+networks:
+  fiap_net:
