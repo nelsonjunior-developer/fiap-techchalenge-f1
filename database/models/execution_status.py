@@ -9,11 +9,16 @@ class ExecutionStatusEnum(str, enum.Enum):
     error   = 'error'
 
 class ExecutionTabEnum(str, enum.Enum):
-    producao        = 'producao'
-    processamento   = 'processamento'
-    comercializacao = 'comercializacao'
-    importacao      = 'importacao'
-    exportacao      = 'exportacao'
+    producao                      = 'producao'
+    processamento                 = 'processamento'
+    comercializacao               = 'comercializacao'
+    importacao                    = 'importacao'
+
+    # Seções da aba Exportação
+    exportacao_tab_subopt_01     = 'exportacao_tab_subopt_01'  # vinhos de mesa
+    exportacao_tab_subopt_02     = 'exportacao_tab_subopt_02'  # espumantes
+    exportacao_tab_subopt_03     = 'exportacao_tab_subopt_03'  # uvas frescas
+    exportacao_tab_subopt_04     = 'exportacao_tab_subopt_04'  # suco de uva
 
 class ExecutionStatus(Base):
     __tablename__ = 'execution_status'
