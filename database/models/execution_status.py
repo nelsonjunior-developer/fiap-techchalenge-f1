@@ -34,6 +34,7 @@ class ExecutionStatus(Base):
     status        = Column(Enum(ExecutionStatusEnum, name='exec_status_enum'), nullable=False)
     tab           = Column(Enum(ExecutionTabEnum,   name='exec_tab_enum'),    nullable=False)
     error_message = Column(String, nullable=True)
+    ano = Column(Integer, nullable=True)
     created       = Column(
         DateTime(timezone=True),
         server_default=func.now(),

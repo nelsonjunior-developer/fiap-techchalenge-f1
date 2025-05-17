@@ -1,10 +1,12 @@
 # captura/processor.py
 
 import logging
+from captura.scrapers.importacao_scraper import get_importacao_data_by_section
 from captura.scrapers.producao_scraper import get_item_subitems as get_producao_subitems
 from captura.scrapers.commercializacao_scraper import get_item_subitems as get_commercializacao_subitems
 from captura.scrapers.processamento_scraper import get_all_processamento_data
 from captura.scrapers.exportacao_scraper import get_exportacao_data_by_section
+from captura.scrapers.importacao_scraper import get_importacao_data_all_years
 from captura.data_handler import normalize_quantity
 
 from database.db import engine, Base
@@ -17,10 +19,6 @@ from database.repos.exportacao_repo import (
     save_exportacao_uvas_frescas,
     save_exportacao_suco_uva
 )
-from database.repos.execution_repo import save_execution_status
-from database.models.execution_status import ExecutionStatusEnum, ExecutionTabEnum
-from database.models.processamento import GrapeTypeEnum
-
 from database.repos.importacao_repo import (
     save_importacao_vinhos_de_mesa,
     save_importacao_espumantes,
@@ -28,7 +26,9 @@ from database.repos.importacao_repo import (
     save_importacao_uvas_passas,
     save_importacao_suco_uva
 )
-from captura.scrapers.importacao_scraper import get_importacao_data_by_section
+from database.repos.execution_repo import save_execution_status
+from database.models.execution_status import ExecutionStatusEnum, ExecutionTabEnum
+from database.models.processamento import GrapeTypeEnum
 
 # Configura o logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -123,29 +123,46 @@ def process_and_save_processamento():
 
 ### Funções para importação
 def process_and_save_importacao(section_key, save_func, tab_enum):
-    try:
-        raw = get_importacao_data_by_section(section_key)
-        records = [{
-            "pais": pais,
-            "quantidade_kg": normalize_quantity(qtd),
-            "valor_usd": normalize_quantity(valor)
-        } for pais, qtd, valor, _ in raw]  # <- aqui estava o erro
+    """
+    Processa e salva os dados de importação de uma seção específica ano a ano,
+    garantindo que cada ano seja tratado de forma isolada (raspagem, persistência e status).
+    """
+    total_registros = 0
 
-        if records:
-            save_func(records)
-            logger.info(f"{len(records)} registros de importação salvos para {tab_enum}.")
-            save_execution_status(ExecutionStatusEnum.success, tab_enum)
-        else:
-            msg = f"Nenhum registro válido encontrado para {tab_enum.value}."
-            logger.warning(msg)
-            save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
+    for ano in range(1970, 2025):
+        try:
+            rows = get_importacao_data_by_section(section_key, ano)
+            registros_ano = []
+            for row in rows:
+                if len(row) == 3:
+                    pais, qtd, valor = row
+                    registros_ano.append({
+                        "pais": pais,
+                        "quantidade_kg": normalize_quantity(qtd),
+                        "valor_usd": normalize_quantity(valor),
+                        "ano": ano
+                    })
+                else:
+                    logger.warning(f"Formato inválido detectado no ano {ano}: {row}")
 
-    except Exception as e:
-        msg = str(e)
-        logger.error(f"Erro no ETL de importação ({tab_enum.value}): {msg}")
-        save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
+            if registros_ano:
+                save_func(registros_ano)
+                logger.info(f"{len(registros_ano)} registros salvos para {tab_enum.value} em {ano}")
+                save_execution_status(ExecutionStatusEnum.success, tab_enum, ano=ano)
+                total_registros += len(registros_ano)
+            else:
+                msg = f"Nenhum dado válido para {tab_enum.value} em {ano}"
+                logger.warning(msg)
+                save_execution_status(ExecutionStatusEnum.error, tab_enum, error_message=msg, ano=ano)
 
-## Wrappers para cada aba de importação
+        except Exception as e:
+            msg = f"Erro ao processar ano {ano} ({tab_enum.value}): {e}"
+            logger.error(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab_enum, error_message=msg, ano=ano)
+
+    logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
+
+## Funções para exportação
 def process_and_save_exportacao(section_key, save_func, tab_enum):
     try:
         raw = get_exportacao_data_by_section(section_key)
