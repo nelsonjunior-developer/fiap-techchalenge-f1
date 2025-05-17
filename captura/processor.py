@@ -21,6 +21,15 @@ from database.repos.execution_repo import save_execution_status
 from database.models.execution_status import ExecutionStatusEnum, ExecutionTabEnum
 from database.models.processamento import GrapeTypeEnum
 
+from database.repos.importacao_repo import (
+    save_importacao_vinhos_de_mesa,
+    save_importacao_espumantes,
+    save_importacao_uvas_frescas,
+    save_importacao_uvas_passas,
+    save_importacao_suco_uva
+)
+from captura.scrapers.importacao_scraper import get_importacao_data_by_section
+
 # Configura o logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -28,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Garante que as tabelas existam
 Base.metadata.create_all(bind=engine)
 
-
+## Função para normalizar a quantidade
 def process_and_save_producao():
     tab = ExecutionTabEnum.producao
     try:
@@ -53,7 +62,7 @@ def process_and_save_producao():
         logger.error(f"Erro no ETL de produção: {msg}")
         save_execution_status(ExecutionStatusEnum.error, tab, msg)
 
-
+## Função para processamento de dados de comercialização
 def process_and_save_commercializacao():
     tab = ExecutionTabEnum.comercializacao
     try:
@@ -78,7 +87,7 @@ def process_and_save_commercializacao():
         logger.error(f"Erro no ETL de comercialização: {msg}")
         save_execution_status(ExecutionStatusEnum.error, tab, msg)
 
-
+## Função para processamento de dados de processamento
 def process_and_save_processamento():
     tab = ExecutionTabEnum.processamento
     try:
@@ -112,7 +121,31 @@ def process_and_save_processamento():
         logger.error(f"Erro no ETL de processamento: {msg}")
         save_execution_status(ExecutionStatusEnum.error, tab, msg)
 
+### Funções para importação
+def process_and_save_importacao(section_key, save_func, tab_enum):
+    try:
+        raw = get_importacao_data_by_section(section_key)
+        records = [{
+            "pais": pais,
+            "quantidade_kg": normalize_quantity(qtd),
+            "valor_usd": normalize_quantity(valor)
+        } for pais, qtd, valor, _ in raw]  # <- aqui estava o erro
 
+        if records:
+            save_func(records)
+            logger.info(f"{len(records)} registros de importação salvos para {tab_enum}.")
+            save_execution_status(ExecutionStatusEnum.success, tab_enum)
+        else:
+            msg = f"Nenhum registro válido encontrado para {tab_enum.value}."
+            logger.warning(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
+
+    except Exception as e:
+        msg = str(e)
+        logger.error(f"Erro no ETL de importação ({tab_enum.value}): {msg}")
+        save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
+
+## Wrappers para cada aba de importação
 def process_and_save_exportacao(section_key, save_func, tab_enum):
     try:
         raw = get_exportacao_data_by_section(section_key)
@@ -141,23 +174,62 @@ if __name__ == "__main__":
     logger.info("### Iniciando processamento completo da API FIAP... ###")
     logger.info("#####################################################")
 
-    try:
-        process_and_save_commercializacao()
-    except Exception:
-        logger.exception("Falha crítica em comercialização.")
+    # try:
+    #     process_and_save_commercializacao()
+    # except Exception:
+    #     logger.exception("Falha crítica em comercialização.")
+
+    # try:
+    #     process_and_save_producao()
+    # except Exception:
+    #     logger.exception("Falha crítica em produção.")
+
+    # try:
+    #     process_and_save_processamento()
+    # except Exception:
+    #     logger.exception("Falha crítica em processamento.")
+
+    # try:
+    #     process_and_save_exportacao("vinhos_de_mesa", save_exportacao_vinhos_de_mesa, ExecutionTabEnum.exportacao_tab_subopt_01)
+    # except Exception:
+    #     logger.exception("Falha crítica em exportacao_tab_subopt_01")
+
+    # try:
+    #     process_and_save_exportacao("espumantes", save_exportacao_espumantes, ExecutionTabEnum.exportacao_tab_subopt_02)
+    # except Exception:
+    #     logger.exception("Falha crítica em exportacao_tab_subopt_02")
+
+    # try:
+    #     process_and_save_exportacao("uvas_frescas", save_exportacao_uvas_frescas, ExecutionTabEnum.exportacao_tab_subopt_03)
+    # except Exception:
+    #     logger.exception("Falha crítica em exportacao_tab_subopt_03")
+
+    # try:
+    #     process_and_save_exportacao("suco_de_uva", save_exportacao_suco_uva, ExecutionTabEnum.exportacao_tab_subopt_04)
+    # except Exception:
+    #     logger.exception("Falha crítica em exportacao_tab_subopt_04")
 
     try:
-        process_and_save_producao()
+        process_and_save_importacao("vinhos_de_mesa", save_importacao_vinhos_de_mesa, ExecutionTabEnum.importacao_tab_subopt_01)
     except Exception:
-        logger.exception("Falha crítica em produção.")
+        logger.exception("Falha crítica em importacao_tab_subopt_01")
 
     try:
-        process_and_save_processamento()
+        process_and_save_importacao("espumantes", save_importacao_espumantes, ExecutionTabEnum.importacao_tab_subopt_02)
     except Exception:
-        logger.exception("Falha crítica em processamento.")
+        logger.exception("Falha crítica em importacao_tab_subopt_02")
 
-    # Exportações (executadas separadamente)
-    process_and_save_exportacao("vinhos_de_mesa", save_exportacao_vinhos_de_mesa, ExecutionTabEnum.exportacao_tab_subopt_01)
-    process_and_save_exportacao("espumantes", save_exportacao_espumantes, ExecutionTabEnum.exportacao_tab_subopt_02)
-    process_and_save_exportacao("uvas_frescas", save_exportacao_uvas_frescas, ExecutionTabEnum.exportacao_tab_subopt_03)
-    process_and_save_exportacao("suco_de_uva", save_exportacao_suco_uva, ExecutionTabEnum.exportacao_tab_subopt_04)
+    try:
+        process_and_save_importacao("uvas_frescas", save_importacao_uvas_frescas, ExecutionTabEnum.importacao_tab_subopt_03)
+    except Exception:
+        logger.exception("Falha crítica em importacao_tab_subopt_03")
+
+    try:
+        process_and_save_importacao("uvas_passas", save_importacao_uvas_passas, ExecutionTabEnum.importacao_tab_subopt_04)
+    except Exception:
+        logger.exception("Falha crítica em importacao_tab_subopt_04")
+
+    try:
+        process_and_save_importacao("suco_de_uva", save_importacao_suco_uva, ExecutionTabEnum.importacao_tab_subopt_05)
+    except Exception:
+        logger.exception("Falha crítica em importacao_tab_subopt_05")

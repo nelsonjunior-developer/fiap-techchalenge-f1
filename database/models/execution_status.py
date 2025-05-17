@@ -20,6 +20,13 @@ class ExecutionTabEnum(str, enum.Enum):
     exportacao_tab_subopt_03     = 'exportacao_tab_subopt_03'  # uvas frescas
     exportacao_tab_subopt_04     = 'exportacao_tab_subopt_04'  # suco de uva
 
+     # 🆕 IMPORTAÇÃO
+    importacao_tab_subopt_01 = "importacao_tab_subopt_01"
+    importacao_tab_subopt_02 = "importacao_tab_subopt_02"
+    importacao_tab_subopt_03 = "importacao_tab_subopt_03"
+    importacao_tab_subopt_04 = "importacao_tab_subopt_04"
+    importacao_tab_subopt_05 = "importacao_tab_subopt_05"
+
 class ExecutionStatus(Base):
     __tablename__ = 'execution_status'
 

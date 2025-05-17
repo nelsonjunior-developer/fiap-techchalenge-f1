@@ -6,3 +6,8 @@ class InvalidDataError(Exception):
     ser convertido ou for considerado inválido.
     """
     pass
+
+
+class ScrapeError(Exception):
+    """Erro genérico para falhas durante a raspagem dos dados."""
+    pass
