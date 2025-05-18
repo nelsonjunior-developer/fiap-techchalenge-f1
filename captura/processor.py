@@ -89,37 +89,49 @@ def process_and_save_commercializacao():
 
 ## Função para processamento de dados de processamento
 def process_and_save_processamento():
+    """
+    Processa e salva os dados da aba de Processamento, ano a ano (1970–2024),
+    com status individual por ano e tratamento de falhas isoladas.
+    """
     tab = ExecutionTabEnum.processamento
-    try:
-        raw = get_all_processamento_data()
-        records = []
-        for category, variety, qty_str, grape_type_str in raw:
-            try:
-                grape_type_enum = GrapeTypeEnum(grape_type_str)
-            except ValueError:
-                logger.warning(f"Grape type inválido ignorado: {grape_type_str}")
-                continue
+    total_registros = 0
 
-            records.append({
-                "category": category,
-                "variety": variety,
-                "quantidade": normalize_quantity(qty_str),
-                "grape_type": grape_type_enum,
-            })
+    for ano in range(1970, 2025):
+        try:
+            raw = get_all_processamento_data(ano)
+            registros_ano = []
 
-        if records:
-            save_processamento_records(records)
-            logger.info(f"{len(records)} registros de processamento salvos.")
-            save_execution_status(ExecutionStatusEnum.success, tab)
-        else:
-            msg = "Nenhum registro válido encontrado para processamento."
-            logger.warning(msg)
-            save_execution_status(ExecutionStatusEnum.error, tab, msg)
+            for category, variety, qty_str, grape_type_str in raw:
+                try:
+                    grape_type_enum = GrapeTypeEnum(grape_type_str)
+                except ValueError:
+                    logger.warning(f"Ano {ano} — Grape type inválido ignorado: {grape_type_str}")
+                    continue
 
-    except Exception as e:
-        msg = str(e)
-        logger.error(f"Erro no ETL de processamento: {msg}")
-        save_execution_status(ExecutionStatusEnum.error, tab, msg)
+                registros_ano.append({
+                    "category": category,
+                    "variety": variety,
+                    "quantidade": normalize_quantity(qty_str),
+                    "grape_type": grape_type_enum,
+                    "ano": ano
+                })
+
+            if registros_ano:
+                save_processamento_records(registros_ano)
+                logger.info(f"{len(registros_ano)} registros salvos para processamento em {ano}")
+                save_execution_status(ExecutionStatusEnum.success, tab, ano=ano)
+                total_registros += len(registros_ano)
+            else:
+                msg = f"Nenhum dado válido encontrado para processamento em {ano}"
+                logger.warning(msg)
+                save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+        except Exception as e:
+            msg = f"Erro ao processar ano {ano} (processamento): {e}"
+            logger.error(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+    logger.info(f"Total acumulado de registros salvos para processamento: {total_registros}")
 
 ### Funções para importação
 def process_and_save_importacao(section_key, save_func, tab_enum):
@@ -227,6 +239,16 @@ def run_all_exportacao_tasks():
         except Exception:
             logger.exception(f"Falha crítica em {tab_enum.value}")
 
+def run_all_processamento_tasks():
+    try:
+        process_and_save_processamento()
+    except Exception:
+        logger.exception("Falha crítica em processamento.")
+
+
+
+
+
 #############################################
 ## Main function to run all scraping tasks ##
 #############################################
@@ -248,20 +270,13 @@ if __name__ == "__main__":
 
 
 
+    
     # Run all processamento tasks
-    try:
-        process_and_save_processamento()
-    except Exception:
-        logger.exception("Falha crítica em processamento.")
-
-
-
-
-
+    run_all_processamento_tasks()
 
     
     # Run all exportacao tasks
-    run_all_exportacao_tasks()
+  #  run_all_exportacao_tasks()
     
     # Run all importacao tasks
-    run_all_importacao_tasks()
+ #   run_all_importacao_tasks()
