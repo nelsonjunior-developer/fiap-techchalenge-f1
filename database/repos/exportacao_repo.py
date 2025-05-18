@@ -13,16 +13,29 @@ def _save_exportacao(records: list[dict], categoria: str) -> None:
     session = SessionLocal()
     logger.info(f"Iniciando upsert de {len(records)} registros de exportação para categoria '{categoria}'...")
 
+    # Adiciona categoria e valida os campos
+    cleaned_records = []
     for rec in records:
-        rec['categoria'] = categoria
+        rec["categoria"] = categoria
 
-    stmt = insert(Exportacao).values(records)
+        required_fields = ["pais", "quantidade_kg", "valor_usd", "ano"]
+        if all(field in rec for field in required_fields):
+            cleaned_records.append(rec)
+        else:
+            logger.warning(f"Registro descartado por campos ausentes: {rec}")
+
+    if not cleaned_records:
+        logger.warning(f"Nenhum registro válido para inserir na categoria '{categoria}'.")
+        return
+
+    stmt = insert(Exportacao).values(cleaned_records)
+
     upsert_stmt = stmt.on_conflict_do_update(
-        index_elements=['categoria', 'pais'],
+        index_elements=["categoria", "pais", "ano"],
         set_={
-            'quantidade_kg': stmt.excluded.quantidade_kg,
-            'valor_usd': stmt.excluded.valor_usd,
-            'updated': func.now()
+            "quantidade_kg": stmt.excluded.quantidade_kg,
+            "valor_usd": stmt.excluded.valor_usd,
+            "updated": func.now(),
         }
     )
 

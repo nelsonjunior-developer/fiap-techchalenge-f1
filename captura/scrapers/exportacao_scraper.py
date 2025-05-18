@@ -3,58 +3,75 @@
 import logging
 import requests
 from bs4 import BeautifulSoup
-from captura import config
+from time import sleep
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+from captura import config
+from captura.exceptions import ScrapeError
+
 logger = logging.getLogger(__name__)
 
 EXPORTACAO_URLS = {
-    "vinhos_de_mesa": (config.URL_EXPORTACAO_VINHOS_MESA, "exportacao_tab_subopt_01"),
-    "espumantes":     (config.URL_EXPORTACAO_ESPUMANTES,   "exportacao_tab_subopt_02"),
-    "uvas_frescas":   (config.URL_EXPORTACAO_UVAS_FRESCAS, "exportacao_tab_subopt_03"),
-    "suco_de_uva":    (config.URL_EXPORTACAO_SUCO_UVA,     "exportacao_tab_subopt_04"),
+    "vinhos_de_mesa": config.URL_EXPORTACAO_VINHOS_MESA,
+    "espumantes": config.URL_EXPORTACAO_ESPUMANTES,
+    "uvas_frescas": config.URL_EXPORTACAO_UVAS_FRESCAS,
+    "suco_de_uva": config.URL_EXPORTACAO_SUCO_UVA,
 }
 
-def fetch_exportacao_page(url: str) -> str:
-    logger.info(f"Baixando página de Exportação: {url}")
-    resp = requests.get(url, timeout=config.HTTP_TIMEOUT)
-    resp.raise_for_status()
 
-    if 'text/html' not in resp.headers.get('Content-Type', ''):
-        logger.error("Conteúdo inválido retornado.")
-        raise ValueError("O conteúdo retornado não é HTML.")
+def _build_export_url(base_url: str, year: int) -> str:
+    if "ano=" not in base_url:
+        if "?" in base_url:
+            return f"{base_url}&ano={year}"
+        return f"{base_url}?ano={year}"
+    return base_url
 
-    return resp.text
 
-def parse_exportacao_table(html: str) -> list[tuple[str, str, str]]:
-    soup = BeautifulSoup(html, 'html.parser')
-    table = soup.find('table', class_='tb_base tb_dados')
-    if not table:
-        logger.warning("Tabela de dados não encontrada na página exportação.")
-        return []
-
-    results = []
-    for tr in table.tbody.find_all('tr'):
-        tds = tr.find_all('td')
-        if len(tds) < 3:
-            continue
-
-        pais   = tds[0].get_text(strip=True)
-        qtde   = tds[1].get_text(strip=True)
-        valor  = tds[2].get_text(strip=True)
-
-        results.append((pais, qtde, valor))
-    return results
-
-def get_exportacao_data_by_section(section_key: str) -> list[tuple[str, str, str, str]]:
+def get_exportacao_data_by_section(section_key: str, ano: int) -> list[tuple[str, str, str]]:
+    """
+    Raspagem de um ano específico para uma categoria de exportação.
+    Retorna lista de tuplas (pais, quantidade_kg, valor_usd).
+    """
     if section_key not in EXPORTACAO_URLS:
-        raise ValueError(f"Chave de seção inválida: {section_key}")
+        raise ValueError(f"Categoria inválida de exportação: {section_key}")
 
-    url, tab_enum_str = EXPORTACAO_URLS[section_key]
-    try:
-        html = fetch_exportacao_page(url)
-        rows = parse_exportacao_table(html)
-        return [(pais, qtde, valor, tab_enum_str) for pais, qtde, valor in rows]
-    except Exception as e:
-        logger.error(f"Erro ao processar página {section_key}: {e}")
-        raise
+    base_url = EXPORTACAO_URLS[section_key]
+    url = _build_export_url(base_url, ano)
+    logger.info(f"Baixando dados de exportação: {section_key} - {ano} - {url}")
+
+    for attempt in range(1, config.MAX_RETRIES + 1):
+        try:
+            response = requests.get(url, timeout=config.HTTP_TIMEOUT)
+            response.raise_for_status()
+
+            if "text/html" not in response.headers.get("Content-Type", ""):
+                raise ScrapeError(f"Conteúdo inválido recebido para {section_key} - {ano}")
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            tabela = soup.find("table", class_="tb_dados")
+
+            if not tabela:
+                raise ScrapeError(f"Tabela de dados não encontrada para {section_key} ({ano})")
+
+            dados = []
+            linhas = tabela.find_all("tr")
+
+            for linha in linhas[1:]:
+                colunas = linha.find_all("td")
+                if len(colunas) < 3:
+                    continue
+
+                pais = colunas[0].get_text(strip=True)
+                quantidade = colunas[1].get_text(strip=True)
+                valor = colunas[2].get_text(strip=True)
+
+                dados.append((pais, quantidade, valor))
+
+            logger.info(f"{len(dados)} registros coletados para {section_key} - {ano}")
+            return dados
+
+        except Exception as e:
+            logger.warning(f"[{ano}] Tentativa {attempt} falhou: {e}")
+            if attempt == config.MAX_RETRIES:
+                raise ScrapeError(f"Falha ao obter dados de {section_key} para o ano {ano}") from e
+
+        sleep(3) # Respeitar o tempo de espera entre as tentativas

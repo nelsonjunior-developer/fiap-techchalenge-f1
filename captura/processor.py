@@ -165,45 +165,50 @@ def process_and_save_importacao(section_key, save_func, tab_enum):
 
 ## Funções para exportação
 def process_and_save_exportacao(section_key, save_func, tab_enum):
-    try:
-        raw = get_exportacao_data_by_section(section_key)
-        records = [{
-            "pais": pais,
-            "quantidade_kg": normalize_quantity(qtd),
-            "valor_usd": normalize_quantity(valor)
-        } for pais, qtd, valor, _ in raw]
+    """
+    Processa e salva os dados de exportação de uma seção específica ano a ano,
+    com status individual por ano e tratamento de falhas isoladas.
+    """
+    total_registros = 0
 
-        if records:
-            save_func(records)
-            logger.info(f"{len(records)} registros de exportação salvos para {tab_enum}.")
-            save_execution_status(ExecutionStatusEnum.success, tab_enum)
-        else:
-            msg = f"Nenhum registro válido encontrado para {tab_enum.value}."
-            logger.warning(msg)
-            save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
-
-    except Exception as e:
-        msg = str(e)
-        logger.error(f"Erro no ETL de exportação ({tab_enum.value}): {msg}")
-        save_execution_status(ExecutionStatusEnum.error, tab_enum, msg)
-
-def run_all_importacao_tasks():
-    tasks = [
-        ("vinhos_de_mesa", save_importacao_vinhos_de_mesa, ExecutionTabEnum.importacao_tab_subopt_01),
-        ("espumantes", save_importacao_espumantes, ExecutionTabEnum.importacao_tab_subopt_02),
-        ("uvas_frescas", save_importacao_uvas_frescas, ExecutionTabEnum.importacao_tab_subopt_03),
-        ("uvas_passas", save_importacao_uvas_passas, ExecutionTabEnum.importacao_tab_subopt_04),
-        ("suco_de_uva", save_importacao_suco_uva, ExecutionTabEnum.importacao_tab_subopt_05),
-    ]
-    for section, save_func, tab_enum in tasks:
+    for ano in range(1970, 2025):
         try:
-            process_and_save_importacao(section, save_func, tab_enum)
-        except Exception:
-            logger.exception(f"Falha crítica em {tab_enum.value}")
+            rows = get_exportacao_data_by_section(section_key, ano)
+            registros_ano = []
 
+            for pais, qtd, valor in rows:
+                registros_ano.append({
+                    "pais": pais,
+                    "quantidade_kg": normalize_quantity(qtd),
+                    "valor_usd": normalize_quantity(valor),
+                    "ano": ano
+                })
+
+            if registros_ano:
+                save_func(registros_ano)
+                logger.info(f"{len(registros_ano)} registros salvos para {tab_enum.value} em {ano}")
+                save_execution_status(ExecutionStatusEnum.success, tab_enum, ano=ano)
+                total_registros += len(registros_ano)
+            else:
+                msg = f"Nenhum dado válido para {tab_enum.value} em {ano}"
+                logger.warning(msg)
+                save_execution_status(ExecutionStatusEnum.error, tab_enum, error_message=msg, ano=ano)
+
+        except Exception as e:
+            msg = f"Erro ao processar ano {ano} ({tab_enum.value}): {e}"
+            logger.error(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab_enum, error_message=msg, ano=ano)
+
+    logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
+
+
+#############################################
+## Main function to run all scraping tasks ##
+#############################################
 if __name__ == "__main__":
+    
     logger.info("### Iniciando processamento completo da API FIAP... ###")
-    logger.info("#####################################################")
+    
     
 
     # try:
@@ -253,4 +258,4 @@ if __name__ == "__main__":
 
 
     # Run all importacao tasks
-    run_all_importacao_tasks()
+   # run_all_importacao_tasks()
