@@ -162,6 +162,19 @@ def process_and_save_importacao(section_key, save_func, tab_enum):
 
     logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
 
+def run_all_importacao_tasks():
+    tasks = [
+        ("vinhos_de_mesa", save_importacao_vinhos_de_mesa, ExecutionTabEnum.importacao_tab_subopt_01),
+        ("espumantes", save_importacao_espumantes, ExecutionTabEnum.importacao_tab_subopt_02),
+        ("uvas_frescas", save_importacao_uvas_frescas, ExecutionTabEnum.importacao_tab_subopt_03),
+        ("uvas_passas", save_importacao_uvas_passas, ExecutionTabEnum.importacao_tab_subopt_04),
+        ("suco_de_uva", save_importacao_suco_uva, ExecutionTabEnum.importacao_tab_subopt_05),
+    ]
+    for section, save_func, tab_enum in tasks:
+        try:
+            process_and_save_importacao(section, save_func, tab_enum)
+        except Exception:
+            logger.exception(f"Falha crítica em {tab_enum.value}")
 
 ## Funções para exportação
 def process_and_save_exportacao(section_key, save_func, tab_enum):
@@ -201,6 +214,18 @@ def process_and_save_exportacao(section_key, save_func, tab_enum):
 
     logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
 
+def run_all_exportacao_tasks():
+    tasks = [
+        ("vinhos_de_mesa", save_exportacao_vinhos_de_mesa, ExecutionTabEnum.exportacao_tab_subopt_01),
+        ("espumantes", save_exportacao_espumantes, ExecutionTabEnum.exportacao_tab_subopt_02),
+        ("uvas_frescas", save_exportacao_uvas_frescas, ExecutionTabEnum.exportacao_tab_subopt_03),
+        ("suco_de_uva", save_exportacao_suco_uva, ExecutionTabEnum.exportacao_tab_subopt_04),
+    ]
+    for section, save_func, tab_enum in tasks:
+        try:
+            process_and_save_exportacao(section, save_func, tab_enum)
+        except Exception:
+            logger.exception(f"Falha crítica em {tab_enum.value}")
 
 #############################################
 ## Main function to run all scraping tasks ##
@@ -221,41 +246,22 @@ if __name__ == "__main__":
     # except Exception:
     #     logger.exception("Falha crítica em produção.")
 
-    # try:
-    #     process_and_save_processamento()
-    # except Exception:
-    #     logger.exception("Falha crítica em processamento.")
 
 
-
-
-
-
-
-    # Run all exportacao tasks
+    # Run all processamento tasks
     try:
-        process_and_save_exportacao("vinhos_de_mesa", save_exportacao_vinhos_de_mesa, ExecutionTabEnum.exportacao_tab_subopt_01)
+        process_and_save_processamento()
     except Exception:
-        logger.exception("Falha crítica em exportacao_tab_subopt_01")
+        logger.exception("Falha crítica em processamento.")
 
-    try:
-        process_and_save_exportacao("espumantes", save_exportacao_espumantes, ExecutionTabEnum.exportacao_tab_subopt_02)
-    except Exception:
-        logger.exception("Falha crítica em exportacao_tab_subopt_02")
 
-    try:
-        process_and_save_exportacao("uvas_frescas", save_exportacao_uvas_frescas, ExecutionTabEnum.exportacao_tab_subopt_03)
-    except Exception:
-        logger.exception("Falha crítica em exportacao_tab_subopt_03")
 
-    try:
-        process_and_save_exportacao("suco_de_uva", save_exportacao_suco_uva, ExecutionTabEnum.exportacao_tab_subopt_04)
-    except Exception:
-        logger.exception("Falha crítica em exportacao_tab_subopt_04")
+
+
 
     
-
-
-
+    # Run all exportacao tasks
+    run_all_exportacao_tasks()
+    
     # Run all importacao tasks
-   # run_all_importacao_tasks()
+    run_all_importacao_tasks()
