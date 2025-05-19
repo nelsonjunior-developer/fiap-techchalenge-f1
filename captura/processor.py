@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Garante que as tabelas existam
 Base.metadata.create_all(bind=engine)
 
-## Função para normalizar a quantidade
+## Função para produção
 def process_and_save_producao():
     """
     Processa e salva os dados da aba Produção ano a ano (1970–2024),
@@ -75,28 +75,39 @@ def process_and_save_producao():
 
 ## Função para processamento de dados de comercialização
 def process_and_save_commercializacao():
+    """
+    Processa e salva os dados da aba de Comercialização, ano a ano (1970–2024),
+    com status individual por ano e tratamento de falhas isoladas.
+    """
     tab = ExecutionTabEnum.comercializacao
-    try:
-        raw = get_commercializacao_subitems()
-        records = [{
-            "item": item,
-            "subitem": subitem,
-            "quantidade": normalize_quantity(qty_str)
-        } for item, subitem, qty_str in raw]
+    total_registros = 0
 
-        if records:
-            save_commercializacao_records(records)
-            logger.info(f"{len(records)} registros de comercialização salvos.")
-            save_execution_status(ExecutionStatusEnum.success, tab)
-        else:
-            msg = "Nenhum registro válido encontrado para comercialização."
-            logger.warning(msg)
-            save_execution_status(ExecutionStatusEnum.error, tab, msg)
+    for ano in range(1970, 2025):
+        try:
+            raw = get_commercializacao_subitems(ano)
+            registros_ano = [{
+                "item": item,
+                "subitem": subitem,
+                "quantidade": normalize_quantity(qty_str),
+                "ano": ano
+            } for item, subitem, qty_str in raw if item and subitem and qty_str]
 
-    except Exception as e:
-        msg = str(e)
-        logger.error(f"Erro no ETL de comercialização: {msg}")
-        save_execution_status(ExecutionStatusEnum.error, tab, msg)
+            if registros_ano:
+                save_commercializacao_records(registros_ano)
+                logger.info(f"{len(registros_ano)} registros salvos para comercialização em {ano}")
+                save_execution_status(ExecutionStatusEnum.success, tab, ano=ano)
+                total_registros += len(registros_ano)
+            else:
+                msg = f"Nenhum dado válido encontrado para comercialização em {ano}"
+                logger.warning(msg)
+                save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+        except Exception as e:
+            msg = f"Erro ao processar ano {ano} (comercialização): {e}"
+            logger.error(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+    logger.info(f"Total acumulado de registros salvos para comercialização: {total_registros}")
 
 ## Função para processamento de dados de processamento
 def process_and_save_processamento():
@@ -185,20 +196,6 @@ def process_and_save_importacao(section_key, save_func, tab_enum):
 
     logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
 
-def run_all_importacao_tasks():
-    tasks = [
-        ("vinhos_de_mesa", save_importacao_vinhos_de_mesa, ExecutionTabEnum.importacao_tab_subopt_01),
-        ("espumantes", save_importacao_espumantes, ExecutionTabEnum.importacao_tab_subopt_02),
-        ("uvas_frescas", save_importacao_uvas_frescas, ExecutionTabEnum.importacao_tab_subopt_03),
-        ("uvas_passas", save_importacao_uvas_passas, ExecutionTabEnum.importacao_tab_subopt_04),
-        ("suco_de_uva", save_importacao_suco_uva, ExecutionTabEnum.importacao_tab_subopt_05),
-    ]
-    for section, save_func, tab_enum in tasks:
-        try:
-            process_and_save_importacao(section, save_func, tab_enum)
-        except Exception:
-            logger.exception(f"Falha crítica em {tab_enum.value}")
-
 ## Funções para exportação
 def process_and_save_exportacao(section_key, save_func, tab_enum):
     """
@@ -237,6 +234,26 @@ def process_and_save_exportacao(section_key, save_func, tab_enum):
 
     logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
 
+def run_all_producao_tasks():
+    try:
+        process_and_save_producao()
+    except Exception:
+        logger.exception("Falha crítica em produção.")
+
+def run_all_importacao_tasks():
+    tasks = [
+        ("vinhos_de_mesa", save_importacao_vinhos_de_mesa, ExecutionTabEnum.importacao_tab_subopt_01),
+        ("espumantes", save_importacao_espumantes, ExecutionTabEnum.importacao_tab_subopt_02),
+        ("uvas_frescas", save_importacao_uvas_frescas, ExecutionTabEnum.importacao_tab_subopt_03),
+        ("uvas_passas", save_importacao_uvas_passas, ExecutionTabEnum.importacao_tab_subopt_04),
+        ("suco_de_uva", save_importacao_suco_uva, ExecutionTabEnum.importacao_tab_subopt_05),
+    ]
+    for section, save_func, tab_enum in tasks:
+        try:
+            process_and_save_importacao(section, save_func, tab_enum)
+        except Exception:
+            logger.exception(f"Falha crítica em {tab_enum.value}")
+
 def run_all_exportacao_tasks():
     tasks = [
         ("vinhos_de_mesa", save_exportacao_vinhos_de_mesa, ExecutionTabEnum.exportacao_tab_subopt_01),
@@ -256,31 +273,20 @@ def run_all_processamento_tasks():
     except Exception:
         logger.exception("Falha crítica em processamento.")
 
-
-
-
-
 #############################################
 ## Main function to run all scraping tasks ##
 #############################################
 if __name__ == "__main__":
     
     logger.info("### Iniciando processamento completo da API FIAP... ###")
-    
-    
-
-    # try:
-    #     process_and_save_commercializacao()
-    # except Exception:
-    #     logger.exception("Falha crítica em comercialização.")
 
     try:
-        process_and_save_producao()
+        process_and_save_commercializacao()
     except Exception:
-        logger.exception("Falha crítica em produção.")
-
-
-
+        logger.exception("Falha crítica em comercialização.")
+    
+    # Run production tasks
+    run_all_producao_tasks()
     
     # Run all processamento tasks
     run_all_processamento_tasks()
