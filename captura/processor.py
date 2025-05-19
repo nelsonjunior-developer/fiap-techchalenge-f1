@@ -39,28 +39,39 @@ Base.metadata.create_all(bind=engine)
 
 ## Função para normalizar a quantidade
 def process_and_save_producao():
+    """
+    Processa e salva os dados da aba Produção ano a ano (1970–2024),
+    com status individual por ano e tratamento de falhas isoladas.
+    """
     tab = ExecutionTabEnum.producao
-    try:
-        raw = get_producao_subitems()
-        records = [{
-            "item": item,
-            "subitem": subitem,
-            "quantidade": normalize_quantity(qty_str)
-        } for item, subitem, qty_str in raw]
+    total_registros = 0
 
-        if records:
-            save_producao_records(records)
-            logger.info(f"{len(records)} registros de produção salvos.")
-            save_execution_status(ExecutionStatusEnum.success, tab)
-        else:
-            msg = "Nenhum registro válido encontrado para produção."
-            logger.warning(msg)
-            save_execution_status(ExecutionStatusEnum.error, tab, msg)
+    for ano in range(1970, 2025):
+        try:
+            raw = get_producao_subitems(ano)
+            registros_ano = [{
+                "item": item,
+                "subitem": subitem,
+                "quantidade": normalize_quantity(qtd),
+                "ano": ano
+            } for item, subitem, qtd in raw if item and subitem and qtd]
 
-    except Exception as e:
-        msg = str(e)
-        logger.error(f"Erro no ETL de produção: {msg}")
-        save_execution_status(ExecutionStatusEnum.error, tab, msg)
+            if registros_ano:
+                save_producao_records(registros_ano)
+                logger.info(f"{len(registros_ano)} registros salvos para produção em {ano}")
+                save_execution_status(ExecutionStatusEnum.success, tab, ano=ano)
+                total_registros += len(registros_ano)
+            else:
+                msg = f"Nenhum dado válido encontrado para produção em {ano}"
+                logger.warning(msg)
+                save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+        except Exception as e:
+            msg = f"Erro ao processar ano {ano} (produção): {e}"
+            logger.error(msg)
+            save_execution_status(ExecutionStatusEnum.error, tab, error_message=msg, ano=ano)
+
+    logger.info(f"Total acumulado de registros salvos para produção: {total_registros}")
 
 ## Função para processamento de dados de comercialização
 def process_and_save_commercializacao():
@@ -263,10 +274,10 @@ if __name__ == "__main__":
     # except Exception:
     #     logger.exception("Falha crítica em comercialização.")
 
-    # try:
-    #     process_and_save_producao()
-    # except Exception:
-    #     logger.exception("Falha crítica em produção.")
+    try:
+        process_and_save_producao()
+    except Exception:
+        logger.exception("Falha crítica em produção.")
 
 
 
@@ -274,9 +285,8 @@ if __name__ == "__main__":
     # Run all processamento tasks
     run_all_processamento_tasks()
 
-    
     # Run all exportacao tasks
-  #  run_all_exportacao_tasks()
+    run_all_exportacao_tasks()
     
     # Run all importacao tasks
- #   run_all_importacao_tasks()
+    run_all_importacao_tasks()
