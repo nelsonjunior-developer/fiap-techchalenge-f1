@@ -109,6 +109,7 @@ def process_and_save_commercializacao():
 
     logger.info(f"Total acumulado de registros salvos para comercialização: {total_registros}")
 
+
 ## Função para processamento de dados de processamento
 def process_and_save_processamento():
     """
@@ -234,6 +235,12 @@ def process_and_save_exportacao(section_key, save_func, tab_enum):
 
     logger.info(f"Total acumulado de registros salvos para {tab_enum.value}: {total_registros}")
 
+def run_all_commercializacao_tasks():
+    try:
+        process_and_save_commercializacao()
+    except Exception:
+        logger.exception("Falha crítica em comercialização.")
+
 def run_all_producao_tasks():
     try:
         process_and_save_producao()
@@ -280,10 +287,8 @@ if __name__ == "__main__":
     
     logger.info("### Iniciando processamento completo da API FIAP... ###")
 
-    try:
-        process_and_save_commercializacao()
-    except Exception:
-        logger.exception("Falha crítica em comercialização.")
+    # Run commercialização tasks
+    run_all_commercializacao_tasks()
     
     # Run production tasks
     run_all_producao_tasks()

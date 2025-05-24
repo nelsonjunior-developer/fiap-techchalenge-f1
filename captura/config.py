@@ -26,3 +26,6 @@ URL_IMPORTACAO_SUCO_UVA      = "http://vitibrasil.cnpuv.embrapa.br/index.php?sub
 # Tempo limite para requests
 HTTP_TIMEOUT = 10
 MAX_RETRIES = 3
+
+# Intervalo de execução do scheduler (em horas)
+SCHEDULER_INTERVAL_HOURS = 1

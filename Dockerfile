@@ -15,10 +15,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 4. Copy all of your application code
 COPY . .
-
-# 5. (Optional) Create the tables before running
-#    This assumes your processor module will run metadata.create_all()
-# ENTRYPOINT ["python", "-c", "from database.db import Base, engine; Base.metadata.create_all(bind=engine)"]
-
-# 6. Default command: run your ETL processor
-CMD ["python", "-m", "captura.processor"]
