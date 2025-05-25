@@ -143,7 +143,7 @@ docker run -d \
 
 ## 🧪 Como Rodar os Testes
 
-### Com Docker (recomendado):
+### Com Docker utilizando o script de testes (recomendado):
 
 ```bash
 ./run_api_tests.sh
@@ -172,7 +172,7 @@ Listadas em `requirements.txt`:
 
 ## 📤 Deploy
 
-Deploy será realizado futuramente na plataforma Render.  
-Link temporário: [https://api-vitibrasil.onrender.com](https://api-vitibrasil.onrender.com)
+A aplicacao se encontra atualmente deployada no render e pode ser acessada atraves do seguinte link:  
+[Renderer](https://fiap-techchalenge-f1.onrender.com/docs)
 
 
