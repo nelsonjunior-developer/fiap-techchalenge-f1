@@ -14,7 +14,6 @@ import database.models.comercializacao
 import database.models.importacao
 import database.models.exportacao
 import database.models.execution_status
-import database.models.error_log
 
 import logging
 import sys
