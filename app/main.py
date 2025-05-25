@@ -6,17 +6,8 @@ from fastapi import FastAPI
 from app.routes import producao, comercializacao, processamento, importacao, exportacao
 from app.routes import auth
 
-# create_tables.py
-from database.db import Base, engine
-import database.models.producao
-import database.models.processamento
-import database.models.comercializacao
-import database.models.importacao
-import database.models.exportacao
-import database.models.execution_status
-
-import logging
-import sys
+# IMPORTANTE: importa e inicia o scheduler
+from captura.scheduler import start_scheduler
 
 # Configura o logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,16 +19,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
-logger.info("### Inciando as rotas ###")
-Base.metadata.create_all(bind=engine)
+logger.info("### Iniciando as rotas ###")
 
 # Registra as rotas de autenticação
 app.include_router(auth.router)
 
-# Registra as rotas
+# Registra as demais rotas
 app.include_router(producao.router)
 app.include_router(comercializacao.router)
 app.include_router(processamento.router)
 app.include_router(importacao.router)
 app.include_router(exportacao.router)
 
+# Inicia o agendador
+start_scheduler()

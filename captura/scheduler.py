@@ -9,12 +9,12 @@ from captura.processor import (
     process_and_save_commercializacao
 )
 from captura import config
-import time
 
 # Configura o logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+scheduler = None  # Variável global para controle
 
 def run_all_tasks():
     logger.info("### Execução agendada iniciada ###")
@@ -28,10 +28,13 @@ def run_all_tasks():
     except Exception as e:
         logger.exception(f"Erro durante execução agendada: {e}")
 
-
 def start_scheduler():
+    global scheduler
+    if scheduler and scheduler.running:
+        logger.info("Scheduler já está em execução.")
+        return
+
     scheduler = BackgroundScheduler()
-    # Garante que o primeiro job rode imediatamente e os próximos só iniciem após o fim do anterior
     scheduler.add_job(
         run_all_tasks,
         'interval',
@@ -40,15 +43,3 @@ def start_scheduler():
     )
     scheduler.start()
     logger.info(f"Scheduler iniciado: rodando a cada {config.SCHEDULER_INTERVAL_HOURS} hora(s).")
-
-    try:
-        while True:
-            time.sleep(60)  # mantém o processo vivo sem consumir CPU
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        logger.info("Scheduler finalizado.")
-
-
-
-if __name__ == "__main__":
-    start_scheduler()
