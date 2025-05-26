@@ -16,7 +16,6 @@ URL_EXPORTACAO_UVAS_FRESCAS  = "http://vitibrasil.cnpuv.embrapa.br/index.php?sub
 URL_EXPORTACAO_SUCO_UVA      = "http://vitibrasil.cnpuv.embrapa.br/index.php?subopcao=subopt_04&opcao=opt_06"
 
 # URLs Importação
-# URLs Importação
 URL_IMPORTACAO_VINHOS_MESA   = "http://vitibrasil.cnpuv.embrapa.br/index.php?subopcao=subopt_01&opcao=opt_05"
 URL_IMPORTACAO_ESPUMANTES    = "http://vitibrasil.cnpuv.embrapa.br/index.php?subopcao=subopt_02&opcao=opt_05"
 URL_IMPORTACAO_UVAS_FRESCAS  = "http://vitibrasil.cnpuv.embrapa.br/index.php?subopcao=subopt_03&opcao=opt_05"
@@ -28,4 +27,4 @@ HTTP_TIMEOUT = 10
 MAX_RETRIES = 3
 
 # Intervalo de execução do scheduler (em horas)
-SCHEDULER_INTERVAL_HOURS = 1
+SCHEDULER_INTERVAL_HOURS = 6

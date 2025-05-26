@@ -8,7 +8,7 @@ Este projeto é parte do Tech Challenge da FIAP e tem como objetivo central cole
 
 A aplicação consiste em:
 
-- Extração de dados do site oficial da Embrapa via scraping.
+- Extração de dados do site oficial da Embrapa via scraping atraves do beautifulsoup4.
 - Armazenamento estruturado em banco de dados PostgreSQL.
 - Exposição desses dados por meio de uma REST API criada com FastAPI.
 - Execução agendada de scrapers com APScheduler.
