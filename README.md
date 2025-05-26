@@ -175,4 +175,5 @@ Listadas em `requirements.txt`:
 A aplicacao se encontra atualmente deployada no render e pode ser acessada atraves do seguinte link:  
 [Renderer](https://fiap-techchalenge-f1.onrender.com/docs)
 
-
+Cenário de uso proposto para ML
+Prevendo a produção de uva por tipo e região com base em dados históricos de comercialização, importação e processamento.
